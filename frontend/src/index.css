@@ -1,0 +1,403 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  color: #0f172a;
+  background: #edf9fb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #edf9fb;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.input-field {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #0f172a;
+  border-radius: 14px;
+  padding: 8px 12px;
+  outline: none;
+  transition: all 0.18s ease;
+}
+
+.input-field:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
+}
+
+.input-field.border-0:focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.input-field::placeholder {
+  color: #94a3b8;
+}
+
+.label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #334155;
+}
+.card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(248, 250, 252, 0.58)),
+    rgba(255, 255, 255, 0.56);
+  backdrop-filter: blur(24px) saturate(1.14);
+  -webkit-backdrop-filter: blur(24px) saturate(1.14);
+  border: 1px solid rgba(255, 255, 255, 0.74);
+  border-radius: 22px;
+  padding: 16px;
+  box-shadow:
+    0 18px 48px rgba(15, 23, 42, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  transition:
+    box-shadow 0.22s ease,
+    border-color 0.22s ease,
+    background 0.22s ease;
+}
+
+/* 🎨 Different colors for different cards */
+.card-blue,
+.card-green,
+.card-purple,
+.card-orange,
+.card-pink {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(248, 250, 252, 0.6)),
+    rgba(255, 255, 255, 0.58);
+}
+
+.card-blue {
+  border-top: 3px solid rgba(37, 99, 235, 0.72);
+}
+
+.card-green {
+  border-top: 3px solid rgba(15, 118, 110, 0.72);
+}
+
+.card-purple {
+  border-top: 3px solid rgba(6, 182, 212, 0.72);
+}
+
+.card-orange {
+  border-top: 3px solid rgba(14, 165, 233, 0.72);
+}
+
+.card-pink {
+  border-top: 3px solid rgba(20, 184, 166, 0.72);
+}
+
+/* hover effect */
+.card:hover {
+  transform: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(248, 250, 252, 0.68)),
+    rgba(255, 255, 255, 0.64);
+  border-color: rgba(14, 165, 233, 0.28);
+  box-shadow:
+    0 22px 58px rgba(15, 23, 42, 0.1),
+    0 1px 0 rgba(255, 255, 255, 0.95) inset;
+}
+/* .card {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(226, 232, 240, 0.72);
+  border-radius: 20px;
+  box-shadow: 0 18px 45px rgba(14, 43, 110, 0.08);
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease,
+    background  0.3s ease,
+    border-color 0.3s ease;
+}
+
+.card:hover {
+  transform: scale(1.01);
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(37, 99, 235, 0.22);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+} */
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  border-radius: 20px;
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.1);
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease,
+    background  0.3s ease;
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.13);
+}
+.gradient-button {
+  background: linear-gradient(135deg, #0f766e, #2563eb);
+  color: white;
+  border-radius: 12px;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease;
+}
+
+.gradient-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: saturate(1.08);
+  box-shadow: 0 14px 28px rgba(15, 118, 110, 0.24);
+}
+.secondary-button {
+  background: white;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  transition: all 0.18s ease;
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.danger-button {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  transition: all 0.18s ease;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: #fecaca;
+  transform: translateY(-1px);
+}
+/* ============================================================
+   CHAT AREA MEDICAL BACKGROUND
+============================================================ */
+
+.chat-bg-panel {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background:
+    linear-gradient(135deg, rgba(240, 253, 250, 0.72), rgba(239, 246, 255, 0.72)),
+    linear-gradient(rgba(14, 165, 233, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 184, 166, 0.045) 1px, transparent 1px);
+  background-size: auto, 28px 28px, 28px 28px;
+}
+
+/* soft overlay so text remains readable */
+.chat-bg-panel::before {
+  content: none;
+}
+
+/* all chat content must stay above the image overlay */
+.chat-bg-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* improve empty state visibility on image */
+.empty-chat-glass {
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(16px) saturate(1.12);
+  -webkit-backdrop-filter: blur(16px) saturate(1.12);
+  border: 1px dashed rgba(14, 165, 233, 0.34);
+}
+
+/* assistant message should remain readable */
+.assistant-bubble-glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+}
+
+/* loading message should also stay visible */
+.loading-bubble-glass {
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+}
+
+.medical-dashboard-shell {
+  background:
+    linear-gradient(180deg, rgba(14, 165, 233, 0.12) 0%, rgba(14, 165, 233, 0) 34%),
+    linear-gradient(135deg, rgba(236, 254, 255, 0.98) 0%, rgba(239, 246, 255, 0.98) 46%, rgba(240, 253, 250, 0.98) 100%),
+    linear-gradient(rgba(14, 165, 233, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 184, 166, 0.035) 1px, transparent 1px);
+  background-size: auto, auto, 42px 42px, 42px 42px;
+}
+
+.consultation-grid {
+  position: relative;
+}
+
+.consultation-chat-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(236, 253, 245, 0.56)),
+    rgba(255, 255, 255, 0.48);
+  border-color: rgba(6, 182, 212, 0.28);
+  box-shadow:
+    0 30px 78px rgba(8, 47, 73, 0.13),
+    0 0 0 1px rgba(255, 255, 255, 0.82) inset;
+}
+
+.soap-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(239, 246, 255, 0.58)),
+    rgba(255, 255, 255, 0.48);
+  border-color: rgba(14, 165, 233, 0.26);
+}
+
+.safety-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 247, 237, 0.54)),
+    rgba(255, 255, 255, 0.48);
+  border-color: rgba(20, 184, 166, 0.24);
+}
+
+.safety-urgent {
+  border-color: rgba(239, 68, 68, 0.35);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(254, 242, 242, 0.84)),
+    rgba(255, 255, 255, 0.82);
+}
+
+.safety-warning {
+  border-color: rgba(245, 158, 11, 0.36);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 251, 235, 0.84)),
+    rgba(255, 255, 255, 0.82);
+}
+
+.safety-safe {
+  border-color: rgba(34, 197, 94, 0.32);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(240, 253, 244, 0.84)),
+    rgba(255, 255, 255, 0.82);
+}
+
+.soap-note-item {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(248, 250, 252, 0.66));
+  border-color: rgba(255, 255, 255, 0.76);
+}
+
+.soap-note-item .line-clamp-4 {
+  display: block;
+  overflow: visible;
+  white-space: pre-wrap;
+}
+
+.patient-bubble {
+  background: linear-gradient(135deg, #2563eb, #0891b2);
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.18);
+}
+
+.doctor-bubble {
+  border-color: rgba(14, 165, 233, 0.18);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.07);
+}
+
+.chat-input-bar {
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(16px) saturate(1.12);
+  -webkit-backdrop-filter: blur(16px) saturate(1.12);
+  box-shadow:
+    0 14px 30px rgba(15, 23, 42, 0.07),
+    0 0 0 1px rgba(255, 255, 255, 0.72) inset;
+}
+
+.send-button {
+  background: linear-gradient(135deg, #0f766e, #2563eb 62%, #38bdf8);
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.22);
+}
+
+.risk-banner {
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  box-shadow:
+    0 12px 26px rgba(15, 23, 42, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.78) inset;
+}
+
+.metric-card {
+  background: rgba(248, 250, 252, 0.62);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    0 10px 22px rgba(15, 23, 42, 0.045),
+    0 1px 0 rgba(255, 255, 255, 0.76) inset;
+}
+
+.metric-icon {
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.055);
+}
+
+.status-badge {
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.045);
+}

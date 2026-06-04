@@ -1,0 +1,195 @@
+[
+  {
+    "id": 1,
+    "category": "fever",
+    "symptoms": "high fever, body ache, chills",
+    "duration": "2 days",
+    "possible_causes": ["viral infection", "flu"],
+    "advice": "Stay hydrated, rest, take paracetamol if needed. Consult doctor if fever persists >3 days.",
+    "red_flag": false
+  },
+  {
+    "id": 2,
+    "category": "cough",
+    "symptoms": "dry cough, sore throat",
+    "duration": "5 days",
+    "possible_causes": ["common cold", "allergy"],
+    "advice": "Drink warm fluids, avoid cold food, use steam inhalation.",
+    "red_flag": false
+  },
+  {
+    "id": 3,
+    "category": "headache",
+    "symptoms": "mild headache, stress",
+    "duration": "1 day",
+    "possible_causes": ["tension headache"],
+    "advice": "Rest, hydration, avoid screen time.",
+    "red_flag": false
+  },
+  {
+    "id": 4,
+    "category": "stomach pain",
+    "symptoms": "abdominal pain after eating",
+    "duration": "1 day",
+    "possible_causes": ["indigestion"],
+    "advice": "Eat light food, avoid oily meals.",
+    "red_flag": false
+  },
+  {
+    "id": 5,
+    "category": "skin rash",
+    "symptoms": "itchy red rash",
+    "duration": "3 days",
+    "possible_causes": ["allergy", "infection"],
+    "advice": "Avoid irritants, keep area clean, consult doctor if worsening.",
+    "red_flag": false
+  },
+  {
+    "id": 6,
+    "category": "back pain",
+    "symptoms": "lower back pain after sitting",
+    "duration": "1 week",
+    "possible_causes": ["muscle strain"],
+    "advice": "Posture correction, stretching exercises.",
+    "red_flag": false
+  },
+
+  {
+    "id": 7,
+    "category": "cold",
+    "symptoms": "runny nose, sneezing",
+    "duration": "3 days",
+    "possible_causes": ["common cold"],
+    "advice": "Rest, hydration, steam inhalation.",
+    "red_flag": false
+  },
+  {
+    "id": 8,
+    "category": "fever",
+    "symptoms": "fever with cough",
+    "duration": "4 days",
+    "possible_causes": ["flu", "viral infection"],
+    "advice": "Monitor temperature, stay hydrated.",
+    "red_flag": false
+  },
+  {
+    "id": 9,
+    "category": "headache",
+    "symptoms": "severe headache, light sensitivity",
+    "duration": "2 days",
+    "possible_causes": ["migraine"],
+    "advice": "Rest in dark room, avoid triggers.",
+    "red_flag": false
+  },
+  {
+    "id": 10,
+    "category": "stomach pain",
+    "symptoms": "cramps, nausea",
+    "duration": "1 day",
+    "possible_causes": ["food poisoning"],
+    "advice": "Hydration, light diet.",
+    "red_flag": false
+  },
+
+  {
+    "id": 20,
+    "category": "chest pain",
+    "symptoms": "chest pain, shortness of breath",
+    "duration": "30 minutes",
+    "possible_causes": ["heart attack", "angina"],
+    "advice": "Seek immediate medical attention.",
+    "red_flag": true
+  },
+  {
+    "id": 21,
+    "category": "stroke",
+    "symptoms": "slurred speech, weakness on one side",
+    "duration": "sudden",
+    "possible_causes": ["stroke"],
+    "advice": "Emergency: go to hospital immediately.",
+    "red_flag": true
+  },
+  {
+    "id": 22,
+    "category": "bleeding",
+    "symptoms": "heavy bleeding, injury",
+    "duration": "immediate",
+    "possible_causes": ["trauma"],
+    "advice": "Apply pressure and seek emergency care.",
+    "red_flag": true
+  },
+
+  {
+    "id": 23,
+    "category": "fever",
+    "symptoms": "low grade fever",
+    "duration": "1 day",
+    "possible_causes": ["mild infection"],
+    "advice": "Rest and monitor symptoms.",
+    "red_flag": false
+  },
+  {
+    "id": 24,
+    "category": "back pain",
+    "symptoms": "sharp back pain",
+    "duration": "2 days",
+    "possible_causes": ["muscle injury"],
+    "advice": "Avoid heavy lifting.",
+    "red_flag": false
+  },
+  {
+    "id": 25,
+    "category": "skin rash",
+    "symptoms": "burning rash",
+    "duration": "4 days",
+    "possible_causes": ["infection"],
+    "advice": "Consult doctor if spreading.",
+    "red_flag": false
+  },
+
+  {
+    "id": 26,
+    "category": "cough",
+    "symptoms": "persistent cough >2 weeks",
+    "duration": "2 weeks",
+    "possible_causes": ["chronic infection"],
+    "advice": "Consult doctor for evaluation.",
+    "red_flag": false
+  },
+  {
+    "id": 27,
+    "category": "headache",
+    "symptoms": "headache with vomiting",
+    "duration": "1 day",
+    "possible_causes": ["migraine", "infection"],
+    "advice": "Consult doctor if severe.",
+    "red_flag": false
+  },
+  {
+    "id": 28,
+    "category": "stomach pain",
+    "symptoms": "sharp pain right side",
+    "duration": "6 hours",
+    "possible_causes": ["appendicitis"],
+    "advice": "Seek medical evaluation.",
+    "red_flag": true
+  },
+  {
+    "id": 29,
+    "category": "cold",
+    "symptoms": "blocked nose",
+    "duration": "2 days",
+    "possible_causes": ["cold"],
+    "advice": "Steam inhalation.",
+    "red_flag": false
+  },
+  {
+    "id": 30,
+    "category": "fever",
+    "symptoms": "high fever with rash",
+    "duration": "2 days",
+    "possible_causes": ["viral infection"],
+    "advice": "Consult doctor if worsening.",
+    "red_flag": false
+  }
+]
