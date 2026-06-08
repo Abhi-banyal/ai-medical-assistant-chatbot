@@ -1,0 +1,17 @@
+.env
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+doctor_chatbot.db
+*.db
+
+frontend/node_modules/
+frontend/dist/
+
+.git/
+.github/
+
+README.md
