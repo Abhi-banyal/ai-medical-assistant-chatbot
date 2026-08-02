@@ -167,18 +167,6 @@ IMPORTANT:
 # ==============================
 
 async def generate_reply(messages, system_prompt):
-    print("function called")
-    
-    print("\n==============================")
-    print("SYSTEM PROMPT:")
-    print(system_prompt)
-
-    print("\nMESSAGES:")
-    for msg in messages:
-        print(msg)
-
-    print("==============================\n")
-
     try:
         response = await asyncio.to_thread(
             client.chat.completions.create,
@@ -192,10 +180,6 @@ async def generate_reply(messages, system_prompt):
         )
 
         content = response.choices[0].message.content or ""
-
-        print("\nLLM RESPONSE:")
-        print(content)
-        print("==============================\n")
 
         return content
 

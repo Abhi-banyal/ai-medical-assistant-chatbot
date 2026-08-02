@@ -46,6 +46,7 @@ RED_FLAG_PATTERNS = [
     r"\barm weakness\b",
     r"\bweakness on one side\b",
     r"\bheavy bleeding\b",
+    r"\bsevere bleeding\b",
     r"\bbleeding heavily\b",
     r"\bunconscious\b",
     r"\bloss of consciousness\b",
@@ -60,6 +61,14 @@ RED_FLAG_PATTERNS = [
 ]
 
 
+NEGATION_BEFORE_MATCH = re.compile(
+    r"(?:\bno\b|\bnot\b|\bwithout\b|\bden(?:y|ies|ied)\b|"
+    r"\bdo(?:es)? not have\b|\bdid not have\b|\bdon't have\b)"
+    r"(?:\s+\w+){0,3}\s*$",
+    re.IGNORECASE,
+)
+
+
 def classify_urgency(message: str) -> Literal["urgent", "non-urgent"]:
     """
     Rule-based emergency triage.
@@ -72,7 +81,8 @@ def classify_urgency(message: str) -> Literal["urgent", "non-urgent"]:
     normalized = message.lower().strip()
 
     for pattern in RED_FLAG_PATTERNS:
-        if re.search(pattern, normalized):
+        match = re.search(pattern, normalized)
+        if match and not NEGATION_BEFORE_MATCH.search(normalized[: match.start()]):
             return "urgent"
 
     return "non-urgent"

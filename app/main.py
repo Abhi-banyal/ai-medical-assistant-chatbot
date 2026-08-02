@@ -5,6 +5,7 @@ from app.models.database import init_db
 from app.routes import chat, session
 from app.routes import doctor
 from app.routes import hospitals
+from app.routes import speech
 
 
 
@@ -35,6 +36,7 @@ app.include_router(session.router)
 app.include_router(chat.router)
 app.include_router(doctor.router)
 app.include_router(hospitals.router)
+app.include_router(speech.router)
 
 @app.get("/")
 async def root():

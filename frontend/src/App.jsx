@@ -10,37 +10,32 @@ import {
   Loader2,
   MapPin,
   MessageCircle,
+  Mic,
+  MicOff,
   Plus,
   Search,
-  RotateCcw,
   Send,
   ShieldCheck,
+  Square,
   Stethoscope,
   Trash2,
   UserRound,
-  Users,
+  Volume2,
   XCircle
 } from "lucide-react";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import aiMedicalHeaderBg from "./assets/ai-medical-header.png";
 import doctorHero from "./assets/doctor-hero.png";
 import {
+  endBackendSession,
   fetchNearbyHospitals,
+  fetchSpeechToken,
   sendChatMessage,
   searchConsultationHistory,
   startBackendSession
 } from "./lib/api";
-
-const DOCTORS = [
-  { id: 1, name: "Dr. Shifali Thakur (General Physician)", experience: "11 years experience" },
-  { id: 2, name: "Dr. Raj Mehta (Cardiologist)", experience: "14 years experience" },
-  { id: 3, name: "Dr. Neha Verma (Dermatologist)", experience: "10 years experience" },
-  { id: 4, name: "Dr. Amit Singh (Orthopedic)", experience: "12 years experience" },
-  { id: 5, name: "Dr. Priya Nair (Gynecologist)", experience: "13 years experience" },
-  { id: 6, name: "Dr. Karan Gupta (Neurologist)", experience: "15 years experience" },
-  { id: 7, name: "Dr. Sneha Kapoor (Pediatrician)", experience: "9 years experience" }
-];
+import { useDoctors } from "./hooks/useDoctors";
 
 const INITIAL_PROFILE = {
   name: "",
@@ -59,10 +54,6 @@ const INITIAL_SOAP = {
   Plan: "Pending"
 };
 
-function generateLocalSessionId() {
-  return crypto.randomUUID().slice(0, 8).toUpperCase();
-}
-
 function nowTime() {
   return new Date().toLocaleTimeString([], {
     hour: "2-digit",
@@ -70,73 +61,18 @@ function nowTime() {
   });
 }
 
-function detectTriage(message) {
-  const text = message.toLowerCase();
-
-  const urgentKeywords = [
-    "chest pain",
-    "difficulty breathing",
-    "shortness of breath",
-    "can't breathe",
-    "cannot breathe",
-    "severe bleeding",
-    "unconscious",
-    "fainting",
-    "stroke",
-    "seizure",
-    "heart attack",
-    "blue lips",
-    "anaphylaxis",
-    "severe allergic",
-    "blood vomiting",
-    "severe head injury",
-    "loss of consciousness"
-  ];
-
-  const warningKeywords = [
-    "high fever",
-    "severe pain",
-    "persistent vomiting",
-    "dizziness",
-    "pregnant",
-    "diabetes",
-    "blood pressure",
-    "infection",
-    "worsening",
-    "dehydration",
-    "rash",
-    "swelling",
-    "fever"
-  ];
-
-  if (urgentKeywords.some((keyword) => text.includes(keyword))) {
-    return "urgent";
-  }
-
-  if (warningKeywords.some((keyword) => text.includes(keyword))) {
-    return "warning";
-  }
-
-  return "safe";
-}
-
-function triagePriority(status) {
-  const map = {
-    neutral: 0,
-    safe: 1,
-    warning: 2,
-    urgent: 3
-  };
-
-  return map[status] ?? 0;
-}
-
 function validateProfile(profile) {
   const nameValid = profile.name.trim().length > 0;
   const dobValid = Boolean(parseDobInput(profile.dob));
   const sexValid = profile.sex.trim().length > 0;
   const ageNumber = Number(profile.age);
-  const ageValid = Number.isInteger(ageNumber) && ageNumber >= 0 && ageNumber <= 120;
+  const parsedDob = parseDobInput(profile.dob);
+  const calculatedAge = parsedDob ? calculateAgeFromDob(parsedDob) : null;
+  const ageValid =
+    Number.isInteger(ageNumber) &&
+    ageNumber >= 0 &&
+    ageNumber <= 120 &&
+    calculatedAge === ageNumber;
 
   return nameValid && dobValid && sexValid && ageValid;
 }
@@ -281,57 +217,6 @@ function formatDateTimeValue(value) {
   });
 }
 
-function hasClearClinicalContext(chatHistory) {
-  const userMessages = chatHistory.filter((item) => item.role === "user");
-
-  if (userMessages.length === 0) {
-    return false;
-  }
-
-  const combinedText = userMessages
-    .map((item) => item.content.toLowerCase())
-    .join(" ");
-
-  const symptomKeywords = [
-    "fever",
-    "cough",
-    "headache",
-    "pain",
-    "ache",
-    "rash",
-    "swelling",
-    "vomiting",
-    "nausea",
-    "diarrhea",
-    "dizzy",
-    "dizziness",
-    "breath",
-    "chest",
-    "throat",
-    "stomach",
-    "abdomen",
-    "infection"
-  ];
-
-  const detailPatterns = [
-    /\b\d+\s*(day|days|hour|hours|week|weeks|month|months)\b/,
-    /\b(today|yesterday|since|started|duration|for the last)\b/,
-    /\b(mild|moderate|severe|worse|worsening|intense|unbearable)\b/,
-    /\b\d+\s*\/\s*10\b/,
-    /\b(chills|body ache|shortness|breathing|runny nose|sore throat|fatigue|weakness)\b/,
-    /\b(temperature|temp|allergy|medication|diabetes|blood pressure)\b/
-  ];
-
-  const hasSymptom = symptomKeywords.some((keyword) =>
-    combinedText.includes(keyword)
-  );
-  const detailCount = detailPatterns.filter((pattern) =>
-    pattern.test(combinedText)
-  ).length;
-
-  return hasSymptom && (userMessages.length >= 2 || detailCount >= 2);
-}
-
 function parseStoredSummary(summary) {
   if (summary == null) {
     return null;
@@ -410,11 +295,9 @@ function SectionHeader({ icon, title, subtitle }) {
 }
 
 function Sidebar({
-  sessionId,
   selectedDoctor,
   setSelectedDoctor,
-  profile,
-  profileSubmitted,
+  doctors,
   sessionStatus,
   nearbyHospitals,
   loadingHospitals,
@@ -455,6 +338,7 @@ function Sidebar({
           <DoctorDropdown
             selectedDoctor={selectedDoctor}
             setSelectedDoctor={setSelectedDoctor}
+            doctors={doctors}
           />
         </div>
 
@@ -576,7 +460,7 @@ function NearbyHospitalsCard({ hospitals, loading, error, onFindHospitals }) {
   );
 }
 
-function SummaryRow({ label, value }) {
+export function SummaryRow({ label, value }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 last:border-b-0 last:pb-0">
       <span className="text-xs font-bold text-slate-500">{label}</span>
@@ -587,7 +471,7 @@ function SummaryRow({ label, value }) {
   );
 }
 
-function DoctorDropdown({ selectedDoctor, setSelectedDoctor }) {
+function DoctorDropdown({ selectedDoctor, setSelectedDoctor, doctors }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
 
@@ -609,13 +493,13 @@ function DoctorDropdown({ selectedDoctor, setSelectedDoctor }) {
         onClick={() => setOpen((prev) => !prev)}
         className="input-field flex w-full items-center justify-between text-left text-sm font-semibold"
       >
-        <span className="truncate">{selectedDoctor.name}</span>
+        <span className="truncate">{selectedDoctor?.displayName || "Select doctor"}</span>
         <span className="ml-2 text-slate-400">{open ? "▲" : "⌄"}</span>
       </button>
 
       {open ? (
         <div className="custom-scrollbar mt-2 max-h-[132px] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
-          {DOCTORS.map((doctor) => (
+          {doctors.map((doctor) => (
             <button
               key={doctor.id}
               type="button"
@@ -624,12 +508,12 @@ function DoctorDropdown({ selectedDoctor, setSelectedDoctor }) {
                 setOpen(false);
               }}
               className={`block w-full px-3 py-2.5 text-left text-sm font-semibold leading-5 transition-colors ${
-                selectedDoctor.id === doctor.id
+                selectedDoctor?.id === doctor.id
                   ? "bg-blue-50 text-blue-700"
                   : "text-slate-700 hover:bg-slate-100"
               }`}
             >
-              {doctor.name}
+              {doctor.displayName}
             </button>
           ))}
         </div>
@@ -644,7 +528,9 @@ function DoctorAndProfilePanel({
   profileSubmitted,
   dobError,
   setDobError,
-  onStartConsultation
+  onStartConsultation,
+  starting,
+  doctorAvailable
 }) {
   const [error, setError] = useState("");
   const [dobTouched, setDobTouched] = useState(false);
@@ -779,6 +665,10 @@ function DoctorAndProfilePanel({
               <label className="label" htmlFor="name">Name</label>
               <input
                 id="name"
+                name="name"
+                required
+                maxLength={200}
+                autoComplete="name"
                 className="input-field"
                 value={profile.name}
                 onChange={(event) => handleProfileChange("name", event.target.value)}
@@ -791,6 +681,10 @@ function DoctorAndProfilePanel({
               <div className="flex items-center gap-2">
                 <input
                   id="dob"
+                  name="dob"
+                  required
+                  maxLength={20}
+                  autoComplete="bday"
                   type="text"
                   className="input-field"
                   value={profile.dob}
@@ -829,6 +723,8 @@ function DoctorAndProfilePanel({
               <label className="label" htmlFor="age">Age</label>
               <input
                 id="age"
+                name="age"
+                required
                 type="number"
                 min="0"
                 max="120"
@@ -843,6 +739,8 @@ function DoctorAndProfilePanel({
               <label className="label" htmlFor="sex">Sex</label>
               <select
                 id="sex"
+                name="sex"
+                required
                 className="input-field"
                 value={profile.sex}
                 onChange={(event) => handleProfileChange("sex", event.target.value)}
@@ -859,6 +757,8 @@ function DoctorAndProfilePanel({
               <label className="label" htmlFor="allergies">Allergies</label>
               <input
                 id="allergies"
+                name="allergies"
+                maxLength={1000}
                 className="input-field"
                 value={profile.allergies}
                 onChange={(event) => handleProfileChange("allergies", event.target.value)}
@@ -871,6 +771,8 @@ function DoctorAndProfilePanel({
             <label className="label" htmlFor="medications">Medications</label>
             <textarea
               id="medications"
+              name="medications"
+              maxLength={1000}
               rows={1}
               className="input-field resize-none h-10 overflow-y-auto"
               value={profile.medications}
@@ -883,6 +785,8 @@ function DoctorAndProfilePanel({
             <label className="label" htmlFor="conditions">Conditions</label>
             <textarea
               id="conditions"
+              name="conditions"
+              maxLength={1000}
               rows={1}
               className="input-field resize-none h-10 overflow-y-auto"
               value={profile.conditions}
@@ -894,9 +798,10 @@ function DoctorAndProfilePanel({
           <div className="flex items-center justify-between gap-3">
             <button
               type="submit"
+              disabled={starting || !doctorAvailable}
               className="gradient-button flex-1 rounded-2xl px-4 py-2 text-sm font-black"
             >
-              Start Consultation
+              {starting ? "Starting..." : "Start Consultation"}
             </button>
             <button
               type="button"
@@ -926,7 +831,7 @@ function DoctorAndProfilePanel({
   );
 }
 
-function TextAreaField({ id, label, value, placeholder, onChange }) {
+export function TextAreaField({ id, label, value, placeholder, onChange }) {
   return (
     <div>
       <label className="label" htmlFor={id}>
@@ -944,7 +849,7 @@ function TextAreaField({ id, label, value, placeholder, onChange }) {
   );
 }
 
-function TriageAlert({ status }) {
+export function TriageAlert({ status }) {
   const normalizedStatus =
     typeof status === "string" && status.trim()
       ? status.trim().toLowerCase()
@@ -1006,19 +911,347 @@ function TriageAlert({ status }) {
   );
 }
 
-function ChatPanel({
+export function ChatPanel({
   chatHistory,
   profileSubmitted,
   sessionActive,
-  triageStatus,
   loading,
   error,
   onSendMessage,
-  profile,
-  selectedDoctorName
+  selectedDoctorName,
+  voiceResetKey,
+  onClearChat
 }) {
   const [message, setMessage] = useState("");
+  const [speechStatus, setSpeechStatus] = useState("idle");
+  const [speechError, setSpeechError] = useState("");
+  const [showTranscriptConfirmation, setShowTranscriptConfirmation] = useState(false);
+  const [speechLanguage, setSpeechLanguage] = useState("Service default");
+  const [speakingMessageId, setSpeakingMessageId] = useState(null);
   const chatContainerRef = useRef(null);
+  const messageInputRef = useRef(null);
+  const recognizerRef = useRef(null);
+  const recognitionAudioConfigRef = useRef(null);
+  const recognitionTimerRef = useRef(null);
+  const recognizedSegmentsRef = useRef([]);
+  const synthesizerRef = useRef(null);
+  const playbackDestinationRef = useRef(null);
+  const speechTokenRef = useRef(null);
+  const previousVoiceResetKeyRef = useRef(voiceResetKey);
+
+  function clearRecognitionTimer() {
+    if (recognitionTimerRef.current) {
+      window.clearTimeout(recognitionTimerRef.current);
+      recognitionTimerRef.current = null;
+    }
+  }
+
+  function releaseRecognizer() {
+    clearRecognitionTimer();
+    const recognizer = recognizerRef.current;
+    recognizerRef.current = null;
+    if (recognizer) {
+      try {
+        recognizer.close();
+      } catch {
+        // The recognizer may already have released its microphone stream.
+      }
+    }
+    const audioConfig = recognitionAudioConfigRef.current;
+    recognitionAudioConfigRef.current = null;
+    if (audioConfig) {
+      try {
+        audioConfig.close();
+      } catch {
+        // The browser input stream may already have been released.
+      }
+    }
+  }
+
+  function stopPlayback() {
+    const playbackDestination = playbackDestinationRef.current;
+    playbackDestinationRef.current = null;
+    if (playbackDestination) {
+      try {
+        playbackDestination.pause();
+        playbackDestination.close();
+      } catch {
+        // Playback may already have completed.
+      }
+    }
+    const synthesizer = synthesizerRef.current;
+    synthesizerRef.current = null;
+    if (synthesizer) {
+      try {
+        synthesizer.close();
+      } catch {
+        // Playback resources may already be closed after completion.
+      }
+    }
+    setSpeakingMessageId(null);
+  }
+
+  function resetVoiceResources() {
+    clearRecognitionTimer();
+    const recognizer = recognizerRef.current;
+    recognizerRef.current = null;
+    if (recognizer) {
+      try {
+        recognizer.stopContinuousRecognitionAsync(
+          () => recognizer.close(),
+          () => recognizer.close()
+        );
+      } catch {
+        recognizer.close();
+      }
+    }
+    const audioConfig = recognitionAudioConfigRef.current;
+    recognitionAudioConfigRef.current = null;
+    if (audioConfig) {
+      audioConfig.close();
+    }
+    stopPlayback();
+    recognizedSegmentsRef.current = [];
+    setSpeechStatus("idle");
+    setSpeechError("");
+    setShowTranscriptConfirmation(false);
+  }
+
+  useEffect(() => {
+    if (previousVoiceResetKeyRef.current !== voiceResetKey) {
+      setMessage("");
+      previousVoiceResetKeyRef.current = voiceResetKey;
+    }
+    resetVoiceResources();
+    // voiceResetKey is intentionally the reset signal from Clear/New/End session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceResetKey]);
+
+  useEffect(() => () => {
+    clearRecognitionTimer();
+    const recognizer = recognizerRef.current;
+    recognizerRef.current = null;
+    if (recognizer) {
+      try {
+        recognizer.stopContinuousRecognitionAsync(
+          () => recognizer.close(),
+          () => recognizer.close()
+        );
+      } catch {
+        recognizer.close();
+      }
+    }
+    const synthesizer = synthesizerRef.current;
+    synthesizerRef.current = null;
+    if (synthesizer) {
+      synthesizer.close();
+    }
+    const playbackDestination = playbackDestinationRef.current;
+    playbackDestinationRef.current = null;
+    if (playbackDestination) {
+      playbackDestination.pause();
+      playbackDestination.close();
+    }
+  }, []);
+
+  async function getSpeechAuthorization() {
+    const cached = speechTokenRef.current;
+    if (cached && cached.expiresAt > Date.now() + 60_000) {
+      return cached;
+    }
+
+    const data = await fetchSpeechToken();
+    const authorization = {
+      ...data,
+      expiresAt: Date.now() + Math.max(60, data.expires_in_seconds || 540) * 1000
+    };
+    speechTokenRef.current = authorization;
+    setSpeechLanguage(data.recognition_language || "Service default");
+    return authorization;
+  }
+
+  function finishRecognition({ failedMessage = "" } = {}) {
+    releaseRecognizer();
+    const transcript = recognizedSegmentsRef.current.join(" ").trim();
+
+    if (failedMessage) {
+      setSpeechError(failedMessage);
+      setSpeechStatus(
+        /permission|microphone access/i.test(failedMessage)
+          ? "permission_denied"
+          : "recognition_failed"
+      );
+      return;
+    }
+
+    if (!transcript) {
+      setSpeechError("No speech was recognised. You can try again or continue typing.");
+      setSpeechStatus("recognition_failed");
+      return;
+    }
+
+    setMessage(transcript);
+    setSpeechStatus("transcript_ready");
+    setShowTranscriptConfirmation(true);
+    window.requestAnimationFrame(() => messageInputRef.current?.focus());
+  }
+
+  function stopRecognition() {
+    const recognizer = recognizerRef.current;
+    if (!recognizer) {
+      return;
+    }
+
+    setSpeechStatus("stopping");
+    clearRecognitionTimer();
+    try {
+      recognizer.stopContinuousRecognitionAsync(
+        () => finishRecognition(),
+        () => finishRecognition({
+          failedMessage: "Speech recognition could not be stopped safely. Please try again."
+        })
+      );
+    } catch {
+      finishRecognition({
+        failedMessage: "Speech recognition failed. You can continue using text chat."
+      });
+    }
+  }
+
+  async function startRecognition() {
+    if (recognizerRef.current || ["requesting_permission", "listening", "stopping", "transcribing"].includes(speechStatus)) {
+      return;
+    }
+
+    setSpeechError("");
+    setShowTranscriptConfirmation(false);
+    recognizedSegmentsRef.current = [];
+    setSpeechStatus("requesting_permission");
+
+    try {
+      const [SpeechSDK, authorization] = await Promise.all([
+        import("microsoft-cognitiveservices-speech-sdk"),
+        getSpeechAuthorization()
+      ]);
+      const speechConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(
+        authorization.token,
+        authorization.region
+      );
+      speechConfig.speechRecognitionLanguage = authorization.recognition_language;
+      const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+      recognitionAudioConfigRef.current = audioConfig;
+      const recognizer = new SpeechSDK.SpeechRecognizer(speechConfig, audioConfig);
+      recognizerRef.current = recognizer;
+
+      recognizer.recognizing = () => setSpeechStatus("transcribing");
+      recognizer.recognized = (_, event) => {
+        if (
+          event.result.reason === SpeechSDK.ResultReason.RecognizedSpeech &&
+          event.result.text?.trim()
+        ) {
+          recognizedSegmentsRef.current.push(event.result.text.trim());
+        }
+      };
+      recognizer.canceled = (_, event) => {
+        const details = event.errorDetails || "";
+        const permissionDenied = /permission|notallowed|microphone/i.test(details);
+        finishRecognition({
+          failedMessage: permissionDenied
+            ? "Microphone permission was denied. Allow microphone access or continue typing."
+            : "Speech recognition is unavailable. You can continue using text chat."
+        });
+      };
+
+      recognizer.startContinuousRecognitionAsync(
+        () => {
+          setSpeechStatus("listening");
+          recognitionTimerRef.current = window.setTimeout(
+            stopRecognition,
+            Math.max(1, authorization.max_audio_duration_seconds || 30) * 1000
+          );
+        },
+        (error) => {
+          const permissionDenied = /permission|notallowed|microphone/i.test(String(error));
+          finishRecognition({
+            failedMessage: permissionDenied
+              ? "Microphone permission was denied. Allow microphone access or continue typing."
+              : "Speech service is unavailable. You can continue using text chat."
+          });
+        }
+      );
+    } catch (error) {
+      releaseRecognizer();
+      const permissionDenied =
+        error?.name === "NotAllowedError" ||
+        /permission|notallowed|microphone/i.test(error?.message || "");
+      setSpeechStatus(permissionDenied ? "permission_denied" : "service_unavailable");
+      setSpeechError(
+        permissionDenied
+          ? "Microphone permission was denied. Allow microphone access or continue typing."
+          : "Speech service is unavailable. You can continue using text chat."
+      );
+    }
+  }
+
+  function textForSpeech(content) {
+    return String(content || "")
+      .replace(/\[([^\]]+)\]\(https?:\/\/[^)]+\)/g, "$1")
+      .replace(/https?:\/\/\S+/g, "")
+      .trim();
+  }
+
+  async function readMessageAloud(item) {
+    const speechText = textForSpeech(item.content);
+    if (!speechText || /^connection error:/i.test(speechText)) {
+      return;
+    }
+
+    stopPlayback();
+    setSpeechError("");
+    setSpeakingMessageId(item.id);
+
+    try {
+      const [SpeechSDK, authorization] = await Promise.all([
+        import("microsoft-cognitiveservices-speech-sdk"),
+        getSpeechAuthorization()
+      ]);
+      const speechConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(
+        authorization.token,
+        authorization.region
+      );
+      speechConfig.speechSynthesisVoiceName = authorization.synthesis_voice;
+      const playbackDestination = new SpeechSDK.SpeakerAudioDestination();
+      playbackDestinationRef.current = playbackDestination;
+      const audioConfig = SpeechSDK.AudioConfig.fromSpeakerOutput(playbackDestination);
+      const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, audioConfig);
+      synthesizerRef.current = synthesizer;
+      synthesizer.speakTextAsync(
+        speechText,
+        () => {
+          if (synthesizerRef.current === synthesizer) {
+            synthesizerRef.current = null;
+            setSpeakingMessageId(null);
+            playbackDestinationRef.current = null;
+          }
+          playbackDestination.close();
+          synthesizer.close();
+        },
+        () => {
+          if (synthesizerRef.current === synthesizer) {
+            synthesizerRef.current = null;
+            setSpeakingMessageId(null);
+            setSpeechError("Read aloud is unavailable. The response remains available as text.");
+            playbackDestinationRef.current = null;
+          }
+          playbackDestination.close();
+          synthesizer.close();
+        }
+      );
+    } catch {
+      setSpeakingMessageId(null);
+      setSpeechError("Read aloud is unavailable. The response remains available as text.");
+    }
+  }
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -1030,7 +1263,7 @@ function ChatPanel({
  
   
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     const clean = message.trim();
@@ -1039,8 +1272,14 @@ function ChatPanel({
       return;
     }
 
-    onSendMessage(clean);
-    setMessage("");
+    const sent = await onSendMessage(clean);
+    if (sent) {
+      setMessage("");
+      setShowTranscriptConfirmation(false);
+      setSpeechStatus("idle");
+    } else {
+      setMessage(clean);
+    }
   }
 
   const disabled = !profileSubmitted || !sessionActive || loading;
@@ -1055,7 +1294,15 @@ function ChatPanel({
             subtitle=""
           />
         </div>
-        
+        <button
+          type="button"
+          onClick={onClearChat}
+          title="Clear messages from this browser view only"
+          className="secondary-button inline-flex items-center gap-1 rounded-xl px-3 py-2 text-xs font-bold"
+        >
+          <Trash2 size={14} />
+          Clear current view
+        </button>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
@@ -1085,7 +1332,13 @@ function ChatPanel({
             ) : (
               <>
                 {chatHistory.map((item) => (
-                  <ChatBubble key={item.id} message={item} />
+                  <ChatBubble
+                    key={item.id}
+                    message={item}
+                    speaking={speakingMessageId === item.id}
+                    onReadAloud={readMessageAloud}
+                    onStopReading={stopPlayback}
+                  />
                 ))}
 
                 {loading ? (
@@ -1123,11 +1376,41 @@ function ChatPanel({
         </div>
       ) : null}
 
-      <form onSubmit={handleSubmit} className="chat-input-bar mt-2 flex shrink-0 gap-2 rounded-2xl border border-cyan-100 p-1.5">
+      <div className="mt-2" aria-live="polite">
+        {speechStatus !== "idle" ? (
+          <p className="mb-1 text-xs font-bold text-slate-600" role="status">
+            {speechStatus === "requesting_permission" && "Requesting microphone permission…"}
+            {speechStatus === "listening" && "Microphone active. Listening…"}
+            {speechStatus === "transcribing" && "Microphone active. Transcribing…"}
+            {speechStatus === "stopping" && "Stopping microphone…"}
+            {speechStatus === "transcript_ready" && `Transcript ready (${speechLanguage}).`}
+            {speechStatus === "permission_denied" && "Microphone permission denied."}
+            {speechStatus === "service_unavailable" && "Speech service unavailable."}
+            {speechStatus === "recognition_failed" && "Recognition failed."}
+          </p>
+        ) : null}
+        {showTranscriptConfirmation ? (
+          <p className="mb-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">
+            Please check the transcript before sending, especially medicine names, symptoms,
+            numbers and duration. Edit the text below if anything is incorrect.
+          </p>
+        ) : null}
+        {speechError ? (
+          <p className="mb-1 text-xs font-bold text-red-700" role="alert">{speechError}</p>
+        ) : null}
+      </div>
+
+      <form onSubmit={handleSubmit} className="chat-input-bar flex shrink-0 gap-2 rounded-2xl border border-cyan-100 p-1.5">
         <input
+          ref={messageInputRef}
           className="input-field flex-1 border-0 bg-transparent shadow-none focus:shadow-none"
           value={message}
-          onChange={(event) => setMessage(event.target.value)}
+          onChange={(event) => {
+            setMessage(event.target.value);
+            if (showTranscriptConfirmation) {
+              setSpeechStatus("transcript_ready");
+            }
+          }}
           placeholder={
             !profileSubmitted
               ? "Complete profile to unlock chat..."
@@ -1137,6 +1420,32 @@ function ChatPanel({
           }
           disabled={disabled}
         />
+
+        <button
+          type="button"
+          onClick={
+            ["listening", "transcribing"].includes(speechStatus)
+              ? stopRecognition
+              : startRecognition
+          }
+          disabled={
+            disabled ||
+            ["requesting_permission", "stopping"].includes(speechStatus)
+          }
+          aria-label={
+            ["listening", "transcribing"].includes(speechStatus)
+              ? "Stop voice recording"
+              : "Start voice recording"
+          }
+          aria-pressed={["listening", "transcribing"].includes(speechStatus)}
+          className="secondary-button inline-flex min-w-11 items-center justify-center rounded-2xl px-3 disabled:opacity-50"
+        >
+          {["listening", "transcribing"].includes(speechStatus) ? (
+            <MicOff size={18} />
+          ) : (
+            <Mic size={18} />
+          )}
+        </button>
 
         <button
           type="submit"
@@ -1151,7 +1460,7 @@ function ChatPanel({
   );
 }
 
-function ChatBubble({ message }) {
+export function ChatBubble({ message, speaking, onReadAloud, onStopReading }) {
   const isUser = message.role === "user";
   const displayName = isUser ? "Patient" : (message.doctorName || "Assistant");
 
@@ -1184,6 +1493,17 @@ function ChatBubble({ message }) {
         >
           {message.timestamp}
         </p>
+        {!isUser && message.content?.trim() && !/^connection error:/i.test(message.content) ? (
+          <button
+            type="button"
+            onClick={() => speaking ? onStopReading() : onReadAloud(message)}
+            aria-label={speaking ? "Stop reading response aloud" : "Read response aloud"}
+            className="mt-2 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white/80 px-2 py-1 text-xs font-bold text-slate-600"
+          >
+            {speaking ? <Square size={12} /> : <Volume2 size={13} />}
+            {speaking ? "Stop" : "Read aloud"}
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -1391,12 +1711,9 @@ function Header({
   onEndSession,
   onOpenHistorySearch
 }) {
-  const resolvedDoctor =
-    DOCTORS.find((doctor) => doctor.id === selectedDoctor?.id) || selectedDoctor;
-  const doctorName = (resolvedDoctor?.name || "Doctor").split(" (")[0];
-  const doctorSpecialty =
-    (resolvedDoctor?.name || "").split(" (")[1]?.replace(")", "") || "General Physician";
-  const doctorExperience = resolvedDoctor?.experience || "Experience not specified";
+  const doctorName = selectedDoctor?.name || "Doctor";
+  const doctorSpecialty = selectedDoctor?.specialty || "Specialty unavailable";
+  const doctorExperience = selectedDoctor?.experience || "Experience not specified";
   const patientName = profile.name?.trim() || "Not set";
   const patientAge = profile.name?.trim() && profile.age ? `Age: ${profile.age}` : "Age: --";
 
@@ -1455,7 +1772,6 @@ function Header({
             </div>
           </div>
         </div>
-
         {currentPage === "consultation" ? (
           <div className="flex w-full flex-col gap-2 rounded-[22px] border border-white/70 bg-white/95 p-2 text-slate-950 shadow-[0_18px_50px_rgba(15,23,42,0.16)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between xl:max-w-[560px]">
             <div className="flex min-w-0 items-center gap-3">
@@ -1524,6 +1840,7 @@ function HistorySearchModal({
   onClose,
   onSearch
 }) {
+  const dialogRef = useRef(null);
   const activeResult = selectedResult || (Array.isArray(results) ? results[0] : null);
   const summaryValue = parseStoredSummary(activeResult?.summary);
   const soapEntries =
@@ -1532,18 +1849,26 @@ function HistorySearchModal({
       : null;
   const hasResults = Array.isArray(results) && results.length > 0;
 
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (open && dialog && !dialog.open) {
+      if (typeof dialog.showModal === "function") dialog.showModal();
+      else dialog.setAttribute("open", "");
+    }
+  }, [open]);
+
   if (!open) {
     return null;
   }
 
   return (
-    <div
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="history-dialog-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 px-4 py-6 backdrop-blur-sm"
-      onClick={onClose}
     >
       <div
         className="custom-scrollbar flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-[30px] border border-white/70 bg-white shadow-[0_40px_120px_rgba(15,23,42,0.34)]"
-        onClick={(event) => event.stopPropagation()}
       >
         <div className="shrink-0 border-b border-slate-200 px-5 py-4">
           <div className="flex items-start justify-between gap-3">
@@ -1551,7 +1876,7 @@ function HistorySearchModal({
             <p className="text-[11px] font-black uppercase tracking-[0.28em] text-cyan-700">
               Consultation History
             </p>
-            <h3 className="mt-1 text-xl font-black text-slate-950">
+            <h3 id="history-dialog-title" className="mt-1 text-xl font-black text-slate-950">
               Search by Name and DOB
             </h3>
             <p className="mt-1 text-sm font-semibold leading-5 text-slate-500">
@@ -1580,6 +1905,10 @@ function HistorySearchModal({
                   </label>
                   <input
                     id="history-patient-name"
+                    name="history-patient-name"
+                    required
+                    maxLength={200}
+                    autoComplete="name"
                     className="input-field"
                     value={searchForm.patientName}
                     onChange={(event) =>
@@ -1598,6 +1927,10 @@ function HistorySearchModal({
                   </label>
                   <input
                     id="history-dob"
+                    name="history-dob"
+                    required
+                    maxLength={20}
+                    autoComplete="bday"
                     type="text"
                     className="input-field"
                     value={searchForm.dob}
@@ -1778,7 +2111,7 @@ function HistorySearchModal({
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 
@@ -1833,16 +2166,21 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState("setup");
   const [sessionId, setSessionId] = useState("");
   const [chatHistory, setChatHistory] = useState([]);
-  const [selectedDoctor, setSelectedDoctor] = useState(DOCTORS[0]);
+  const {
+    doctors,
+    selectedDoctor,
+    setSelectedDoctor,
+    error: doctorError,
+    retry: retryDoctors
+  } = useDoctors();
   const [profile, setProfile] = useState(INITIAL_PROFILE);
   const [profileSubmitted, setProfileSubmitted] = useState(false);
-  const [sessionActive, setSessionActive] = useState(false);
-  const [sessionStatus, setSessionStatus] = useState("not_started");
+  const [consultationStatus, setConsultationStatus] = useState("idle");
   const [dobError, setDobError] = useState("");
   const [triageStatus, setTriageStatus] = useState("neutral");
   const [soapSummary, setSoapSummary] = useState(null);
-  const [showSoapPanel, setShowSoapPanel] = useState(false);
-  const [problemUnderstood, setProblemUnderstood] = useState(false);
+  const [, setShowSoapPanel] = useState(false);
+  const [, setProblemUnderstood] = useState(false);
   const [diagnosisGiven, setDiagnosisGiven] = useState(false);
   const [safetySignals, setSafetySignals] = useState(null);
   const [showSafetySignals, setShowSafetySignals] = useState(false);
@@ -1857,17 +2195,40 @@ export default function App() {
   const [historySearchError, setHistorySearchError] = useState("");
   const [historyDobError, setHistoryDobError] = useState("");
   const historySearchRequestIdRef = useRef(0);
+  const [voiceResetKey, setVoiceResetKey] = useState(0);
 
-  const [loadingSession, setLoadingSession] = useState(false);
   const [loadingChat, setLoadingChat] = useState(false);
-  const [endingSession, setEndingSession] = useState(false);
   const [loadingHospitals, setLoadingHospitals] = useState(false);
   const [nearbyHospitals, setNearbyHospitals] = useState([]);
   const [hospitalError, setHospitalError] = useState("");
   const [error, setError] = useState("");
+  const lifecycleRequestIdRef = useRef(0);
+  const chatRequestIdRef = useRef(0);
+  const hospitalRequestIdRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  const sessionActive = consultationStatus === "active";
+  const loadingSession = consultationStatus === "starting";
+  const endingSession = consultationStatus === "ending";
+  const sessionStatus =
+    consultationStatus === "active" || consultationStatus === "ending"
+      ? "active"
+      : consultationStatus === "ended"
+        ? "ended"
+        : "not_started";
 
   const showSoapSummary = diagnosisGiven && Boolean(parseStoredSummary(soapSummary));
   const showInsightPanels = showSoapSummary || showSafetySignals;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      lifecycleRequestIdRef.current += 1;
+      chatRequestIdRef.current += 1;
+      hospitalRequestIdRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     if (!showHistoryModal) {
@@ -1959,13 +2320,10 @@ export default function App() {
         return;
       }
 
-      console.error(err);
       if (err?.status === 404) {
         setHistorySearchError("No consultation history found.");
-      } else if (err?.detail) {
-        setHistorySearchError(err.detail);
       } else {
-        setHistorySearchError("Unable to search history.");
+        setHistorySearchError(err?.message || "Unable to search history.");
       }
     } finally {
       if (historySearchRequestIdRef.current === requestId) {
@@ -1975,6 +2333,12 @@ export default function App() {
   }
 
   async function handleStartConsultation() {
+    if (consultationStatus === "starting" || consultationStatus === "ending") return;
+
+    if (!selectedDoctor || !doctors.some((doctor) => doctor.id === selectedDoctor.id)) {
+      setError("Please select an available doctor before starting the consultation.");
+      return;
+    }
     if (!validateProfile(profile)) {
       setError("Please enter a valid name, date of birth, age, and sex before starting the consultation.");
       return;
@@ -1985,7 +2349,9 @@ export default function App() {
       return;
     }
 
-    setLoadingSession(true);
+    const requestId = lifecycleRequestIdRef.current + 1;
+    lifecycleRequestIdRef.current = requestId;
+    setConsultationStatus("starting");
     setError("");
 
     try {
@@ -1996,16 +2362,16 @@ export default function App() {
         throw new Error("Backend did not return a session ID.");
       }
 
+      if (!mountedRef.current || lifecycleRequestIdRef.current !== requestId) return;
       setSessionId(newSessionId);
       setSoapSummary(data.summary ?? null);
       setProfileSubmitted(true);
-      setSessionActive(true);
-      setSessionStatus("active");
+      setConsultationStatus("active");
       setCurrentPage("consultation");
 
       if (chatHistory.length === 0) {
-        const doctorName = selectedDoctor.name.split(" (")[0];
-        const doctorSpecialty = selectedDoctor.name.split(" (")[1]?.replace(")", "") || "";
+        const doctorName = selectedDoctor.name;
+        const doctorSpecialty = selectedDoctor.specialty;
 
         const greeting = {
           id: crypto.randomUUID(),
@@ -2021,18 +2387,16 @@ export default function App() {
         setChatHistory([greeting]);
       }
     } catch (err) {
-      console.error(err);
+      if (!mountedRef.current || lifecycleRequestIdRef.current !== requestId) return;
       setSessionId("");
       setProfileSubmitted(false);
-      setSessionActive(false);
-      setSessionStatus("not_started");
-      setError("Backend session could not be created. Please try again.");
-    } finally {
-      setLoadingSession(false);
+      setConsultationStatus("failed");
+      setError(err?.message || "The consultation could not be started. Please try again.");
     }
   }
 
   function handleClearChat() {
+    setVoiceResetKey((value) => value + 1);
     setChatHistory([]);
     setTriageStatus("neutral");
     setSoapSummary(null);
@@ -2049,9 +2413,12 @@ export default function App() {
       return;
     }
 
-    setEndingSession(true);
-    setSessionActive(false);
-    setSessionStatus("ended");
+    const endingSessionId = sessionId;
+    const requestId = lifecycleRequestIdRef.current + 1;
+    lifecycleRequestIdRef.current = requestId;
+    setConsultationStatus("ending");
+    setVoiceResetKey((value) => value + 1);
+    setError("");
 
     const parsedSummary = parseStoredSummary(soapSummary);
     const summaryForSave =
@@ -2060,50 +2427,48 @@ export default function App() {
         : null;
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/session/end", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          session_id: sessionId,
+      const data = await endBackendSession({
+          session_id: endingSessionId,
           name: profile.name,
           age: Number(profile.age),
           sex: profile.sex,
           dob: normalizeDobForBackend(profile.dob),
           soap_summary: summaryForSave
-        }),
       });
-
-      const data = await res.json();
-      console.log("Session ended:", data);
+      if (
+        !mountedRef.current ||
+        lifecycleRequestIdRef.current !== requestId ||
+        sessionId !== endingSessionId
+      ) return;
       setSoapSummary(data.summary ?? null);
-    } catch (error) {
-      console.error("Error ending session:", error);
-      setError("Unable to end session on backend. You can start a new session.");
-    } finally {
-      setEndingSession(false);
+      setConsultationStatus("ended");
+      setCurrentPage("setup");
+      setChatHistory([]);
+      setProfileSubmitted(false);
+      setTriageStatus("neutral");
+      setShowSoapPanel(false);
+      setProblemUnderstood(false);
+      setDiagnosisGiven(false);
+      setSafetySignals(null);
+      setShowSafetySignals(false);
+      setError("");
+    } catch (endError) {
+      if (!mountedRef.current || lifecycleRequestIdRef.current !== requestId) return;
+      setConsultationStatus("active");
+      setError(endError?.message || "The consultation could not be ended. Please try again.");
     }
-    
-    setCurrentPage("setup");
-    setChatHistory([]);
-    setProfileSubmitted(false);
-    setTriageStatus("neutral");
-    setShowSoapPanel(false);
-    setProblemUnderstood(false);
-    setDiagnosisGiven(false);
-    setSafetySignals(null);
-    setShowSafetySignals(false);
-    setError("");
   }
 
   async function handleStartNewSession() {
+    lifecycleRequestIdRef.current += 1;
+    chatRequestIdRef.current += 1;
+    hospitalRequestIdRef.current += 1;
+    setVoiceResetKey((value) => value + 1);
     setSessionId("");
     setChatHistory([]);
     setProfile(INITIAL_PROFILE);
     setProfileSubmitted(false);
-    setSessionActive(false);
-    setSessionStatus("not_started");
+    setConsultationStatus("idle");
     setDobError("");
     setTriageStatus("neutral");
     setSoapSummary(null);
@@ -2114,11 +2479,9 @@ export default function App() {
     setShowSafetySignals(false);
     setShowHistoryModal(false);
     setHistorySearchForm({
-      sessionId: "",
       patientName: "",
       dob: ""
     });
-    setHistorySearchResult(null);
     setHistorySearchError("");
     setError("");
     setCurrentPage("setup");
@@ -2132,27 +2495,45 @@ export default function App() {
 
     setLoadingHospitals(true);
     setHospitalError("");
+    const requestId = hospitalRequestIdRef.current + 1;
+    hospitalRequestIdRef.current = requestId;
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
+          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            throw new Error("Invalid location coordinates.");
+          }
           const data = await fetchNearbyHospitals(latitude, longitude);
-          setNearbyHospitals(data.hospitals || []);
+          if (!mountedRef.current || hospitalRequestIdRef.current !== requestId) return;
+          const uniqueHospitals = Array.isArray(data?.hospitals)
+            ? Array.from(new Map(data.hospitals.map((item) => [item.id, item])).values())
+            : [];
+          setNearbyHospitals(uniqueHospitals);
 
-          if (!data.hospitals || data.hospitals.length === 0) {
+          if (uniqueHospitals.length === 0) {
             setHospitalError("No nearby hospitals found in this area.");
           }
-        } catch (err) {
-          console.error(err);
-          setHospitalError("Unable to load nearby hospitals.");
+        } catch {
+          if (!mountedRef.current || hospitalRequestIdRef.current !== requestId) return;
+          setHospitalError("Unable to load nearby hospitals. Please try again.");
         } finally {
-          setLoadingHospitals(false);
+          if (mountedRef.current && hospitalRequestIdRef.current === requestId) {
+            setLoadingHospitals(false);
+          }
         }
       },
-      () => {
+      (geolocationError) => {
+        if (!mountedRef.current || hospitalRequestIdRef.current !== requestId) return;
         setLoadingHospitals(false);
-        setHospitalError("Location permission was denied.");
+        setHospitalError(
+          geolocationError?.code === 1
+            ? "Location permission was denied."
+            : geolocationError?.code === 3
+              ? "Location request timed out. Please try again."
+              : "Your location could not be determined."
+        );
       },
       {
         enableHighAccuracy: true,
@@ -2164,7 +2545,7 @@ export default function App() {
 
   async function handleSendMessage(userMessage) {
     if (!profileSubmitted || !sessionActive || endingSession) {
-      return;
+      return false;
     }
 
     setError("");
@@ -2180,22 +2561,16 @@ export default function App() {
 
     setChatHistory(nextChat);
 
-    const detected = detectTriage(userMessage);
-
-    let nextTriage = triageStatus;
-
-    if (triagePriority(detected) >= triagePriority(triageStatus)) {
-      nextTriage = detected;
-      setTriageStatus(detected);
-    }
-
     setLoadingChat(true);
+    const requestId = chatRequestIdRef.current + 1;
+    chatRequestIdRef.current = requestId;
+    const activeSessionId = sessionId;
 
-    const doctorName = selectedDoctor.name.split(" (")[0];
+    const doctorName = selectedDoctor?.name || "Assistant";
 
     try {
       const payload = {
-        session_id: sessionId || generateLocalSessionId(),
+        session_id: activeSessionId,
         message: userMessage,
         doctor_id: selectedDoctor.id,
         patient_profile: {
@@ -2210,16 +2585,12 @@ export default function App() {
       };
 
       const data = await sendChatMessage(payload);
+      if (
+        !mountedRef.current ||
+        chatRequestIdRef.current !== requestId ||
+        sessionId !== activeSessionId
+      ) return false;
       const responseData = data || {};
-
-      console.log("🔍 API Response:", {
-        problem_understood: responseData.problem_understood,
-        diagnosis_given: responseData.diagnosis_given,
-        safety_signals: responseData.safety_signals,
-        triage_status: responseData.triage_status,
-        risk_level: responseData.risk_level,
-        soap_summary: responseData.soap_summary
-      });
 
       const assistantEntry = {
         id: crypto.randomUUID(),
@@ -2251,7 +2622,6 @@ export default function App() {
 
       setProblemUnderstood(Boolean(responseData.problem_understood));
       if (typeof setSafetySignals === "function" && responseData.safety_signals) {
-        console.log("✅ Setting safety_signals:", responseData.safety_signals);
         setSafetySignals(responseData.safety_signals);
       }
       if (shouldShowSafetySignals) {
@@ -2260,7 +2630,6 @@ export default function App() {
       
       // Update diagnosis_given state and show SOAP Summary immediately
       if (responseData.diagnosis_given) {
-        console.log("✅ Setting diagnosisGiven to true");
         setDiagnosisGiven(true);
       }
       
@@ -2268,15 +2637,15 @@ export default function App() {
       const returnedSoapSummary =
         responseData.soap_summary || parseStoredSummary(responseData.summary);
       if (returnedSoapSummary) {
-        console.log("✅ Setting SOAP Summary");
         setSoapSummary(returnedSoapSummary);
       }
+      return true;
     } catch (err) {
-      console.error(err);
+      if (!mountedRef.current || chatRequestIdRef.current !== requestId) return false;
       const isSessionGone = err && err.status === 410;
 
       if (isSessionGone) {
-        setSessionActive(false);
+        setConsultationStatus("ended");
         setCurrentPage("setup");
       }
 
@@ -2286,7 +2655,7 @@ export default function App() {
         content:
           isSessionGone
             ? "This session has ended. Please start a new session to continue."
-            : "Connection error: Unable to reach the backend. Please make sure FastAPI is running and CORS is enabled.",
+            : "Your message was not sent. Please review it and try again.",
         timestamp: nowTime(),
         doctorName: doctorName
       };
@@ -2303,10 +2672,13 @@ export default function App() {
       setError(
         isSessionGone
           ? "Session has ended. Start a new session to continue."
-          : "Unable to reach backend API. Check FastAPI server and CORS settings."
+          : err?.message || "Your message could not be sent. Please try again."
       );
+      return false;
     } finally {
-      setLoadingChat(false);
+      if (mountedRef.current && chatRequestIdRef.current === requestId) {
+        setLoadingChat(false);
+      }
     }
   }
 
@@ -2345,14 +2717,28 @@ export default function App() {
           </div>
         ) : null}
 
+        {doctorError ? (
+          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50/90 px-4 py-3 text-sm font-semibold text-red-700" role="alert">
+            {doctorError}{" "}
+            <button type="button" className="font-black underline" onClick={retryDoctors}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+
+        {error && currentPage === "setup" ? (
+          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50/90 px-4 py-3 text-sm font-semibold text-red-700" role="alert">
+            {error}
+          </div>
+        ) : null}
+
         {currentPage === "setup" ? (
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto xl:grid-cols-[340px_520px_minmax(0,1fr)] xl:items-stretch xl:overflow-hidden">
         <Sidebar
           sessionId={sessionId}
           selectedDoctor={selectedDoctor}
           setSelectedDoctor={setSelectedDoctor}
-          profile={profile}
-          profileSubmitted={profileSubmitted}
+          doctors={doctors}
           sessionStatus={sessionStatus}
           nearbyHospitals={nearbyHospitals}
           loadingHospitals={loadingHospitals}
@@ -2368,6 +2754,8 @@ export default function App() {
               dobError={dobError}
               setDobError={setDobError}
               onStartConsultation={handleStartConsultation}
+              starting={loadingSession}
+              doctorAvailable={Boolean(selectedDoctor)}
             />
 
             <section className="relative isolate flex h-full min-h-[540px] overflow-hidden rounded-[32px] bg-gradient-to-br from-cyan-50 via-sky-50 to-blue-100 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)] xl:min-h-0">
@@ -2455,12 +2843,12 @@ export default function App() {
                 chatHistory={chatHistory}
                 profileSubmitted={profileSubmitted}
                 sessionActive={sessionActive}
-                triageStatus={triageStatus}
                 loading={loadingChat}
                 error={error}
                 onSendMessage={handleSendMessage}
-                profile={profile}
-                selectedDoctorName={selectedDoctor.name.split(" (")[0]}
+                selectedDoctorName={selectedDoctor?.name || "Assistant"}
+                voiceResetKey={voiceResetKey}
+                onClearChat={handleClearChat}
               />
             </div>
 

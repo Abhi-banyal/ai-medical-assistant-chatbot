@@ -399,3 +399,75 @@ Possible future enhancements include:
 * RAG-based medical document support
 * Appointment booking integration
 * Better hospital ranking and map integration
+
+---
+
+## Optional Voice Input and Read Aloud
+
+Voice support uses the Azure AI Speech browser SDK with a short-lived token
+issued by `POST /speech/token`. The permanent Azure Speech subscription key is
+read only by FastAPI and is never placed in React source, Vite variables,
+browser storage, or API responses.
+
+The browser sends microphone audio directly to the configured Azure Speech
+resource. FastAPI does not receive, save, or log raw audio. Azure Speech is
+therefore an external processor of the spoken health information. Review the
+Azure resource's region, retention settings, contractual terms, and applicable
+privacy requirements before enabling the feature.
+
+Voice input does not create a medical API path. Recognition inserts text into
+the existing chat input. The patient must review and may edit the transcript,
+then press the normal Send button. Only that confirmed text is sent through
+`POST /chat`, session validation, history storage, intake, triage, and SOAP
+generation.
+
+Read aloud is optional and never starts automatically. It speaks the visible
+assistant response only. Markdown link labels may be spoken, but raw citation
+URLs are omitted from speech and remain visible as text.
+
+### Voice configuration
+
+Copy the placeholders from `.env.example` and configure:
+
+```env
+VOICE_FEATURE_ENABLED=true
+AZURE_SPEECH_KEY=replace_with_separate_speech_key
+AZURE_SPEECH_REGION=your_speech_resource_region
+SPEECH_RECOGNITION_LANGUAGE=en-US
+SPEECH_SYNTHESIS_VOICE=en-US-AvaMultilingualNeural
+MAX_AUDIO_DURATION_SECONDS=30
+MAX_AUDIO_SIZE_BYTES=5000000
+SPEECH_REQUEST_TIMEOUT_SECONDS=10
+SPEECH_TOKEN_RATE_LIMIT_PER_MINUTE=10
+```
+
+`MAX_AUDIO_SIZE_BYTES` is reserved for a future backend-upload architecture;
+the current token architecture does not upload audio to FastAPI. The selected
+recognition language and synthesis voice must be compatible. The application
+does not perform automatic language identification or claim support for every
+language.
+
+Voice is disabled by default. If it is enabled without a key or region,
+`/speech/token` returns a safe `503` response and text chat remains usable.
+Tokens are cached only in component memory and refreshed before expiry.
+
+Production deployments must use HTTPS for the application and API, restrict
+CORS, place distributed authentication and rate limiting in front of the token
+endpoint, and protect the Speech resource with appropriate network and key
+rotation controls. The current in-memory token rate limiter is per backend
+process and is not sufficient for multiple workers or replicas.
+
+### Voice privacy and accessibility
+
+* Microphone access is requested only after the microphone button is activated.
+* Visible status text and screen-reader live regions announce recording states.
+* Recording stops manually, at the configured limit, on reset, or on unmount.
+* Recognizer and playback resources are released during cleanup.
+* No transcript is automatically submitted.
+* Text input remains available after every speech failure.
+* Assistant text remains visible during and after read-aloud playback.
+
+Voice support does not resolve the application's broader production blockers,
+including missing user authentication and authorization. It must still be
+treated as a demonstration system and must not be represented as diagnosis,
+verified doctor advice, or a replacement for a licensed clinician.

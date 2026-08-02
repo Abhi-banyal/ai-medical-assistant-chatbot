@@ -36,16 +36,11 @@ def get_db():
         db.close()
 
 
-print("🚀 CHAT API LOADED")
-
-
 # -------------------------------
 # CHAT API
 # -------------------------------
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, db: Session = Depends(get_db)):
-
-    print("\n🔥 CHAT API HIT")
 
     # -------------------------------
     # VALIDATE SESSION
@@ -97,8 +92,6 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
     urgency = classify_urgency(request.message)
 
     if urgency == "urgent":
-        print("⚠️ URGENT CASE DETECTED")
-
         store_message(
             db=db,
             session_id=request.session_id,
@@ -184,8 +177,6 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
     else:
         symptom_type = "general"
 
-    print(f"🧠 Detected symptom: {symptom_type}")
-
        
 
     # Summarize patient history
@@ -266,10 +257,6 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
     # Add chat history
     llm_messages.extend(recent_messages)
 
-    print("\n📤 MESSAGES TO LLM:")
-    for m in llm_messages:
-        print(m)
-
     # -------------------------------
     # 🤖 CALL LLM
     # -------------------------------
@@ -289,8 +276,6 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         )
-
-    print("\n🤖 LLM RESPONSE:", assistant_reply)
 
     # -------------------------------
     # STORE RESPONSE
@@ -316,12 +301,8 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
         and (intake_state["associated_symptoms"] or intake_state["red_flags"])
     )
     
-    print(f"🔍 Intake Status: {intake_state}")
-    print(f"🔍 problem_understood: {problem_understood}")
-    
     # Detect if diagnosis/assessment is given
     diagnosis_given = intake_state["assistant_gave_plan"]
-    print(f"🔍 diagnosis_given: {diagnosis_given}")
     
     # Build safety signals if problem is understood
     safety_signals = None
@@ -345,8 +326,6 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
         if conversation_completed or diagnosis_given
         else None
     )
-
-    print(f"🔍 Final Response - problem_understood: {problem_understood}, diagnosis_given: {diagnosis_given}, safety_signals: {safety_signals}")
 
     return ChatResponse(
         reply=assistant_reply,
